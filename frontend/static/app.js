@@ -1,5 +1,5 @@
 // ── CONFIG ──────────────────────────────────────────────
-const API = 'https://fap-tracker-api.osama-abdullah.com';
+const API = 'https://fap-tracker-api.abdullah21673.workers.dev';
 
 // ── AUTH ─────────────────────────────────────────────────
 const Auth = {
