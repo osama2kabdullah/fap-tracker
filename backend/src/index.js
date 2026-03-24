@@ -3,7 +3,7 @@ import { register, login, refreshToken, logout } from './routes/auth.js';
 import { getMe, deleteAccount } from './routes/users.js';
 import { getLogs, createOrUpdateLog, deleteLog } from './routes/logs.js';
 import { getStats } from './routes/stats.js';
-import { err } from './utils/response.js';
+import { err, ok } from './utils/response.js';
 
 export default {
   async fetch(request, env) {
@@ -38,6 +38,8 @@ export default {
 
       // Stats
       else if (path === '/stats' && method === 'GET')        response = await getStats(request, env);
+
+      else if (path === '/' && method === 'GET') response = ok({ message: 'Welcome to the Fap Tracker API!' });
 
       else response = err('Not found', 404);
     } catch (e) {
