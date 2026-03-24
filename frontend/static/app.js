@@ -1,5 +1,5 @@
 // ── CONFIG ──────────────────────────────────────────────
-const API = 'http://127.0.0.1:8787'; // <-- change this
+const API = 'https://fap-tracker-api.osama-abdullah.com';
 
 // ── AUTH ─────────────────────────────────────────────────
 const Auth = {
