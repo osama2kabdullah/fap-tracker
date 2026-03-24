@@ -1,0 +1,11 @@
+name = "fap-tracker-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "fap-tracker-db"
+database_id = "25096f83-bc5a-413a-9a4f-7350ad34c85b"
+
+[vars]
+JWT_SECRET = "change-this-in-cloudflare-dashboard"

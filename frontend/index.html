@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FapTracker — Sign In</title>
+  <link rel="stylesheet" href="./static/style.css" />
+  <style>
+    .auth-shell { position: relative; overflow: hidden; }
+
+    /* Decorative background grid */
+    .auth-shell::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .auth-box { position: relative; z-index: 1; }
+
+    /* Accent glow behind the card */
+    .auth-glow {
+      position: fixed;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(200,240,96,0.07) 0%, transparent 70%);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .form-panel { display: none; }
+    .form-panel.active { display: block; }
+
+    .divider-or {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text3);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin: 20px 0;
+    }
+    .divider-or::before, .divider-or::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .strength-meter { margin-top: 8px; display: none; }
+    .strength-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="auth-glow"></div>
+
+  <div class="auth-shell">
+    <div class="auth-box fade-up">
+
+      <div class="auth-logo">FT/</div>
+      <div class="auth-tagline">// track your habits. own your progress.</div>
+
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign in</div>
+          <div class="auth-tab" id="tab-register" onclick="switchTab('register')">Sign up</div>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <!-- LOGIN FORM -->
+        <div class="form-panel active" id="panel-login">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" type="email" id="login-email" placeholder="you@example.com" autocomplete="email" />
+          </div>
+          <div class="form-group" style="margin-bottom:24px">
+            <label class="form-label">Password</label>
+            <input class="form-input" type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" />
+          </div>
+          <button class="btn btn-primary btn-lg btn-block" id="login-btn" onclick="doLogin()">
+            Sign in
+          </button>
+        </div>
+
+        <!-- REGISTER FORM -->
+        <div class="form-panel" id="panel-register">
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input class="form-input" type="text" id="reg-username" placeholder="yourname" autocomplete="username" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" type="email" id="reg-email" placeholder="you@example.com" autocomplete="email" />
+          </div>
+          <div class="form-group" style="margin-bottom:24px">
+            <label class="form-label">Password</label>
+            <input class="form-input" type="password" id="reg-password" placeholder="Min 8 characters" autocomplete="new-password" oninput="checkStrength(this.value)" />
+            <div class="strength-meter" id="strength-meter">
+              <div class="strength-label" id="strength-label">Strength</div>
+              <div class="progress-wrap"><div class="progress-bar" id="strength-bar" style="width:0%"></div></div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-lg btn-block" id="reg-btn" onclick="doRegister()">
+            Create account
+          </button>
+        </div>
+
+      </div><!-- /.auth-card -->
+
+      <p style="text-align:center;font-size:11px;color:var(--text3);margin-top:24px;line-height:1.8">
+        Private by design. Your data is yours.
+      </p>
+    </div>
+  </div>
+
+  <script src="./static/app.js"></script>
+  <script>
+    redirectIfLoggedIn();
+
+    function switchTab(tab) {
+      document.getElementById('panel-login').classList.toggle('active', tab === 'login');
+      document.getElementById('panel-register').classList.toggle('active', tab === 'register');
+      document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+      document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+      hideAlert();
+    }
+
+    function showAlert(msg, type = 'err') {
+      const el = document.getElementById('alert');
+      el.textContent = msg;
+      el.className = `alert alert-${type} show`;
+    }
+
+    function hideAlert() {
+      document.getElementById('alert').className = 'alert';
+    }
+
+    function setLoading(btnId, loading) {
+      const btn = document.getElementById(btnId);
+      btn.disabled = loading;
+      btn.textContent = loading ? 'Please wait…' : (btnId === 'login-btn' ? 'Sign in' : 'Create account');
+    }
+
+    async function doLogin() {
+      const email    = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!email || !password) return showAlert('Please fill in all fields.');
+      setLoading('login-btn', true);
+      hideAlert();
+      try {
+        const data = await http.post('/auth/login', { email, password });
+        if (data.success) {
+          Auth.save(data.data.token, data.data.refreshToken, data.data.user);
+          window.location.href = 'calendar.html';
+        } else {
+          showAlert(data.error || 'Login failed.');
+        }
+      } catch (e) {
+        showAlert('Connection error. Check your API URL in app.js.');
+      }
+      setLoading('login-btn', false);
+    }
+
+    async function doRegister() {
+      const username = document.getElementById('reg-username').value.trim();
+      const email    = document.getElementById('reg-email').value.trim();
+      const password = document.getElementById('reg-password').value;
+      if (!username || !email || !password) return showAlert('Please fill in all fields.');
+      if (password.length < 8) return showAlert('Password must be at least 8 characters.');
+      setLoading('reg-btn', true);
+      hideAlert();
+      try {
+        const data = await http.post('/auth/register', { username, email, password });
+        if (data.success) {
+          Auth.save(data.data.token, data.data.refreshToken, data.data.user);
+          window.location.href = 'calendar.html';
+        } else {
+          showAlert(data.error || 'Registration failed.');
+        }
+      } catch (e) {
+        showAlert('Connection error. Check your API URL in app.js.');
+      }
+      setLoading('reg-btn', false);
+    }
+
+    function checkStrength(val) {
+      const meter = document.getElementById('strength-meter');
+      const bar   = document.getElementById('strength-bar');
+      const label = document.getElementById('strength-label');
+      meter.style.display = val.length > 0 ? 'block' : 'none';
+      let score = 0;
+      if (val.length >= 8)  score++;
+      if (val.length >= 12) score++;
+      if (/[A-Z]/.test(val)) score++;
+      if (/[0-9]/.test(val)) score++;
+      if (/[^a-zA-Z0-9]/.test(val)) score++;
+      const levels = ['', 'Weak', 'Fair', 'Good', 'Strong', 'Very strong'];
+      const pcts   = ['0%','20%','40%','65%','85%','100%'];
+      const colors = ['','var(--red)','var(--amber)','var(--amber)','var(--accent)','var(--accent)'];
+      bar.style.width = pcts[score];
+      bar.style.background = colors[score];
+      label.textContent = 'Strength: ' + (levels[score] || '');
+    }
+
+    // Enter key support
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      const panel = document.querySelector('.form-panel.active').id;
+      if (panel === 'panel-login') doLogin();
+      else doRegister();
+    });
+  </script>
+</body>
+</html>

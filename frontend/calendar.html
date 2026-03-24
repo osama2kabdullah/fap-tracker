@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FapTracker — Calendar</title>
+  <link rel="stylesheet" href="./static/style.css" />
+  <style>
+    .streak-bar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 28px;
+      margin-bottom: 32px;
+    }
+
+    .streak-num {
+      font-family: var(--font-head);
+      font-size: 48px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1;
+      color: var(--accent);
+    }
+
+    .streak-num.danger { color: var(--red); }
+
+    .streak-info { flex: 1; }
+    .streak-title { font-family: var(--font-head); font-size: 15px; font-weight: 600; }
+    .streak-sub   { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+    .streak-best {
+      text-align: right;
+      font-size: 12px;
+      color: var(--text3);
+    }
+    .streak-best strong {
+      display: block;
+      font-family: var(--font-head);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text2);
+      letter-spacing: -1px;
+    }
+
+    .legend {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+      font-size: 12px;
+      color: var(--text3);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 3px;
+    }
+
+    .legend-dot.clean   { background: rgba(200,240,96,0.4); border: 1px solid rgba(200,240,96,0.6); }
+    .legend-dot.relapse { background: rgba(240,96,96,0.4);  border: 1px solid rgba(240,96,96,0.6); }
+    .legend-dot.today   { background: var(--bg3); border: 1px solid var(--text3); }
+
+    /* Loading skeleton for calendar */
+    .cal-skeleton .cal-day {
+      background: var(--bg3);
+      animation: shimmer 1.4s infinite;
+      background: linear-gradient(90deg, var(--bg3) 25%, var(--bg4) 50%, var(--bg3) 75%);
+      background-size: 200% 100%;
+    }
+
+    /* Delete log button inside modal */
+    .modal-delete-wrap {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      text-align: right;
+    }
+  </style>
+</head>
+<body data-theme="light">
+<div class="drawer-overlay">
+  <button class="drawer-close" aria-label="Close menu">✕</button>
+</div>
+<header>
+  <button class="menu-toggle" aria-label="Open menu">☰</button>
+  <div class="header-logo">
+    <div class="logo-mark">FT/</div>
+    <div class="logo-sub">Habit Tracker</div>
+  </div>
+</header>
+<div class="app-shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">FT/</div>
+      <div class="logo-sub">Habit Tracker</div>
+    </div>
+    <nav>
+      <a href="calendar.html" class="nav-item active"><span class="nav-icon">◫</span> Calendar</a>
+      <a href="stats.html"    class="nav-item"><span class="nav-icon">◈</span> Stats</a>
+      <a href="settings.html" class="nav-item"><span class="nav-icon">◎</span> Settings</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="user-chip">
+        <div class="user-avatar">?</div>
+        <div>
+          <div class="user-name" style="font-size:13px"></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px;cursor:pointer" onclick="logout()">Sign out</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main-content">
+    <div class="page-header fade-up">
+      <div class="page-title">Calendar</div>
+      <div class="page-subtitle">Click any past day to log your result.</div>
+    </div>
+
+    <!-- Streak bar -->
+    <div class="streak-bar fade-up fade-up-1" id="streak-bar">
+      <div class="streak-num" id="streak-num">—</div>
+      <div class="streak-info">
+        <div class="streak-title">Day streak</div>
+        <div class="streak-sub" id="streak-sub">Loading…</div>
+      </div>
+      <div class="streak-best">
+        <span>Best</span>
+        <strong id="streak-best">—</strong>
+      </div>
+    </div>
+
+    <!-- Calendar card -->
+    <div class="card fade-up fade-up-2" id="cal-card">
+      <div class="cal-header">
+        <div class="cal-month" id="cal-month">—</div>
+        <div class="cal-nav">
+          <button class="cal-nav-btn" onclick="prevMonth()">&#8592;</button>
+          <button class="cal-nav-btn" onclick="nextMonth()">&#8594;</button>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot clean"></div> Clean day</div>
+        <div class="legend-item"><div class="legend-dot relapse"></div> Relapsed</div>
+        <div class="legend-item"><div class="legend-dot today"></div> Today</div>
+      </div>
+
+      <div class="cal-grid" id="cal-grid">
+        <!-- day labels -->
+        <div class="cal-day-label">Sun</div>
+        <div class="cal-day-label">Mon</div>
+        <div class="cal-day-label">Tue</div>
+        <div class="cal-day-label">Wed</div>
+        <div class="cal-day-label">Thu</div>
+        <div class="cal-day-label">Fri</div>
+        <div class="cal-day-label">Sat</div>
+        <!-- days injected by JS -->
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Log Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOnBackdrop(event)">
+  <div class="modal" id="modal">
+    <div class="modal-title" id="modal-title">Log entry</div>
+    <div class="modal-date" id="modal-date"></div>
+
+    <div class="result-btns">
+      <button class="result-btn" id="btn-clean" onclick="selectResult('negative')">
+        <span class="rb-icon">✓</span>
+        <span class="rb-label">Clean day</span>
+      </button>
+      <button class="result-btn" id="btn-relapse" onclick="selectResult('positive')">
+        <span class="rb-icon">✗</span>
+        <span class="rb-label">Relapsed</span>
+      </button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Duration (minutes) — optional</label>
+      <input class="form-input" type="number" id="modal-duration" placeholder="e.g. 30" min="0" />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Notes — optional</label>
+      <textarea class="form-input" id="modal-notes" placeholder="How are you feeling? What triggered it?"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="saveLog()">Save</button>
+    </div>
+
+    <div class="modal-delete-wrap" id="modal-delete-wrap" style="display:none">
+      <button class="btn btn-danger btn-sm" onclick="deleteLog()">Delete entry</button>
+    </div>
+  </div>
+</div>
+
+<script src="./static/app.js"></script>
+<script>
+  if (!Auth.requireAuth()) throw new Error('Not logged in');
+  initNav();
+
+  let currentYear  = new Date().getFullYear();
+  let currentMonth = new Date().getMonth() + 1; // 1-12
+  let logsMap      = {}; // { 'YYYY-MM-DD': logObject }
+  let selectedDate = null;
+  let selectedResult = null;
+
+  // ── INIT ──────────────────────────────────────────────
+  async function init() {
+    await Promise.all([loadStats(), loadLogs()]);
+  }
+
+  async function loadStats() {
+    const data = await http.get('/stats');
+    if (!data?.success) return;
+    const { streak } = data.data;
+    const num = document.getElementById('streak-num');
+    num.textContent = streak?.current_streak ?? 0;
+    if ((streak?.current_streak ?? 0) === 0) num.classList.add('danger');
+    else num.classList.remove('danger');
+    document.getElementById('streak-sub').textContent =
+      (streak?.current_streak ?? 0) === 1 ? 'day without relapse' : 'days without relapse';
+    document.getElementById('streak-best').textContent = streak?.best_streak ?? 0;
+  }
+
+  async function loadLogs() {
+    const data = await http.get(`/logs?year=${currentYear}&month=${currentMonth}`);
+    if (!data?.success) return;
+    logsMap = {};
+    for (const log of data.data) logsMap[log.log_date] = log;
+    renderCalendar();
+  }
+
+  // ── CALENDAR ──────────────────────────────────────────
+  function renderCalendar() {
+    const today      = DateUtils.today();
+    const firstDay   = DateUtils.firstDayOfMonth(currentYear, currentMonth);
+    const totalDays  = DateUtils.daysInMonth(currentYear, currentMonth);
+
+    document.getElementById('cal-month').textContent = DateUtils.monthName(currentYear, currentMonth);
+
+    const grid = document.getElementById('cal-grid');
+    // Remove day cells (keep the 7 label divs)
+    const labels = Array.from(grid.children).slice(0, 7);
+    grid.innerHTML = '';
+    labels.forEach(l => grid.appendChild(l));
+
+    // Empty cells for offset
+    for (let i = 0; i < firstDay; i++) {
+      const blank = document.createElement('div');
+      blank.className = 'cal-day cal-empty';
+      grid.appendChild(blank);
+    }
+
+    for (let d = 1; d <= totalDays; d++) {
+      const ymd = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const log = logsMap[ymd];
+      const isToday  = ymd === today;
+      const isFuture = ymd > today;
+
+      const cell = document.createElement('div');
+      cell.className = 'cal-day';
+      if (isToday)  cell.classList.add('cal-today');
+      if (isFuture) cell.classList.add('cal-future');
+      if (log?.result === 'negative') cell.classList.add('logged-clean');
+      if (log?.result === 'positive') cell.classList.add('logged-relapse');
+
+      cell.innerHTML = `<span>${d}</span><div class="day-dot"></div>`;
+
+      if (!isFuture) {
+        cell.addEventListener('click', () => openModal(ymd, log));
+      }
+
+      grid.appendChild(cell);
+    }
+  }
+
+  function prevMonth() {
+    currentMonth--;
+    if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+    loadLogs();
+  }
+
+  function nextMonth() {
+    const now = new Date();
+    if (currentYear > now.getFullYear() || (currentYear === now.getFullYear() && currentMonth >= now.getMonth() + 1)) return;
+    currentMonth++;
+    if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+    loadLogs();
+  }
+
+  // ── MODAL ─────────────────────────────────────────────
+  function openModal(ymd, existingLog) {
+    selectedDate   = ymd;
+    selectedResult = existingLog?.result ?? null;
+
+    document.getElementById('modal-title').textContent = existingLog ? 'Edit entry' : 'Log entry';
+    document.getElementById('modal-date').textContent  = DateUtils.label(ymd);
+    document.getElementById('modal-duration').value    = existingLog?.duration_minutes ?? '';
+    document.getElementById('modal-notes').value       = existingLog?.notes ?? '';
+    document.getElementById('modal-delete-wrap').style.display = existingLog ? 'block' : 'none';
+
+    // Reset button styles
+    document.getElementById('btn-clean').className   = 'result-btn';
+    document.getElementById('btn-relapse').className = 'result-btn';
+
+    if (selectedResult === 'negative') document.getElementById('btn-clean').classList.add('selected-clean');
+    if (selectedResult === 'positive') document.getElementById('btn-relapse').classList.add('selected-relapse');
+
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    selectedDate = null;
+    selectedResult = null;
+  }
+
+  function closeModalOnBackdrop(e) {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  }
+
+  function selectResult(result) {
+    selectedResult = result;
+    document.getElementById('btn-clean').className   = 'result-btn' + (result === 'negative' ? ' selected-clean'   : '');
+    document.getElementById('btn-relapse').className = 'result-btn' + (result === 'positive' ? ' selected-relapse' : '');
+  }
+
+  async function saveLog() {
+    if (!selectedResult) return showToast('Please pick Clean or Relapsed.', 'err');
+
+    const btn = document.getElementById('modal-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    const body = {
+      log_date:         selectedDate,
+      result:           selectedResult,
+      duration_minutes: parseInt(document.getElementById('modal-duration').value) || null,
+      notes:            document.getElementById('modal-notes').value.trim() || null,
+    };
+
+    const data = await http.post('/logs', body);
+    btn.disabled = false;
+    btn.textContent = 'Save';
+
+    if (data?.success) {
+      showToast('Saved!', 'ok');
+      closeModal();
+      await Promise.all([loadStats(), loadLogs()]);
+    } else {
+      showToast(data?.error || 'Failed to save.', 'err');
+    }
+  }
+
+  async function deleteLog() {
+    if (!confirm('Delete this entry?')) return;
+    const data = await http.del(`/logs/${selectedDate}`);
+    if (data?.success) {
+      showToast('Entry deleted.', 'ok');
+      closeModal();
+      await Promise.all([loadStats(), loadLogs()]);
+    } else {
+      showToast('Failed to delete.', 'err');
+    }
+  }
+
+  // Escape key to close modal
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  init();
+</script>
+</body>
+</html>

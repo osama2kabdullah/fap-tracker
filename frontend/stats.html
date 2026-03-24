@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FapTracker — Stats</title>
+  <link rel="stylesheet" href="./static/style.css" />
+  <style>
+    .rate-circle {
+      position: relative;
+      width: 140px; height: 140px;
+      flex-shrink: 0;
+    }
+
+    .rate-circle svg { transform: rotate(-90deg); }
+
+    .rate-circle-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .rate-circle-pct {
+      font-family: var(--font-head);
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+
+    .rate-circle-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text3);
+      margin-top: 4px;
+    }
+
+    .rate-row {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .rate-details { flex: 1; }
+    .rate-detail-item { margin-bottom: 14px; }
+    .rdi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text3); margin-bottom: 6px; }
+    .rdi-val   { font-family: var(--font-head); font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+
+    .heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(52, 1fr);
+      gap: 3px;
+      overflow-x: auto;
+    }
+
+    .heatmap-col { display: flex; flex-direction: column; gap: 3px; }
+
+    .hm-cell {
+      width: 10px; height: 10px;
+      border-radius: 2px;
+      background: var(--bg3);
+    }
+
+    .hm-cell.clean   { background: rgba(200,240,96,0.5); }
+    .hm-cell.relapse { background: rgba(240,96,96,0.5); }
+    .hm-cell.today   { outline: 1px solid var(--text3); }
+
+    .month-labels {
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      font-size: 10px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .recent-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text3);
+      margin-bottom: 16px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px;
+      color: var(--text3);
+      font-size: 13px;
+    }
+
+    .section-title {
+      font-family: var(--font-head);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 768px) {
+      .rate-circle-pct { font-size: 20px; }
+    }
+  </style>
+</head>
+<body data-theme="light">
+<div class="drawer-overlay">
+  <button class="drawer-close" aria-label="Close menu">✕</button>
+</div>
+<header>
+  <button class="menu-toggle" aria-label="Open menu">☰</button>
+  <div class="header-logo">
+    <div class="logo-mark">FT/</div>
+    <div class="logo-sub">Habit Tracker</div>
+  </div>
+</header>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">FT/</div>
+      <div class="logo-sub">Habit Tracker</div>
+    </div>
+    <nav>
+      <a href="calendar.html" class="nav-item"><span class="nav-icon">◫</span> Calendar</a>
+      <a href="stats.html"    class="nav-item active"><span class="nav-icon">◈</span> Stats</a>
+      <a href="settings.html" class="nav-item"><span class="nav-icon">◎</span> Settings</a>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="user-chip">
+        <div class="user-avatar">?</div>
+        <div>
+          <div class="user-name" style="font-size:13px"></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px;cursor:pointer" onclick="logout()">Sign out</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header fade-up">
+      <div class="page-title">Stats</div>
+      <div class="page-subtitle">Your journey at a glance.</div>
+    </div>
+
+    <!-- Key numbers -->
+    <div class="stat-grid fade-up fade-up-1" id="stat-grid">
+      <div class="stat-tile">
+        <div class="stat-label">Current streak</div>
+        <div class="stat-value green" id="s-streak">—</div>
+        <div class="stat-sub">days clean</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">Best streak</div>
+        <div class="stat-value" id="s-best">—</div>
+        <div class="stat-sub">all time</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">Total logged</div>
+        <div class="stat-value" id="s-total">—</div>
+        <div class="stat-sub">days</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-label">Clean days</div>
+        <div class="stat-value green" id="s-clean">—</div>
+        <div class="stat-sub">of logged days</div>
+      </div>
+    </div>
+
+    <!-- Success rate -->
+    <div class="card fade-up fade-up-2" style="margin-bottom:24px">
+      <div class="section-title">Success rate</div>
+      <div class="rate-row">
+        <div class="rate-circle" id="rate-circle">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="54" fill="none" stroke="var(--bg3)" stroke-width="12"/>
+            <circle cx="70" cy="70" r="54" fill="none" stroke="var(--accent)" stroke-width="12"
+              stroke-dasharray="339.29" stroke-dashoffset="339.29"
+              id="rate-arc" stroke-linecap="round" style="transition: stroke-dashoffset 1s ease"/>
+          </svg>
+          <div class="rate-circle-text">
+            <div class="rate-circle-pct" id="rate-pct">—</div>
+            <div class="rate-circle-label">clean</div>
+          </div>
+        </div>
+        <div class="rate-details">
+          <div class="rate-detail-item">
+            <div class="rdi-label">Clean days</div>
+            <div class="rdi-val" style="color:var(--accent)" id="rd-clean">—</div>
+          </div>
+          <div class="rate-detail-item">
+            <div class="rdi-label">Relapses</div>
+            <div class="rdi-val" style="color:var(--red)" id="rd-relapse">—</div>
+          </div>
+          <div class="rate-detail-item">
+            <div class="rdi-label">Not logged</div>
+            <div class="rdi-val" style="color:var(--text3)" id="rd-empty">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent logs -->
+    <div class="card fade-up fade-up-3">
+      <div class="section-title">Recent entries</div>
+      <div id="recent-list">
+        <div class="empty-state">Loading…</div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="./static/app.js"></script>
+<script>
+  if (!Auth.requireAuth()) throw new Error();
+  initNav();
+
+  async function init() {
+    const [statsData, logsData] = await Promise.all([
+      http.get('/stats'),
+      http.get('/logs'),
+    ]);
+
+    if (statsData?.success) renderStats(statsData.data);
+    if (logsData?.success)  renderRecent(logsData.data);
+  }
+
+  function renderStats({ streak, totals }) {
+    const cur   = streak?.current_streak ?? 0;
+    const best  = streak?.best_streak    ?? 0;
+    const total = totals?.total_days     ?? 0;
+    const clean = totals?.clean_days     ?? 0;
+    const relapse = totals?.relapse_days ?? 0;
+
+    document.getElementById('s-streak').textContent = cur;
+    document.getElementById('s-best').textContent   = best;
+    document.getElementById('s-total').textContent  = total;
+    document.getElementById('s-clean').textContent  = clean;
+
+    const pct = total > 0 ? Math.round((clean / total) * 100) : 0;
+    document.getElementById('rate-pct').textContent = pct + '%';
+    document.getElementById('rd-clean').textContent   = clean;
+    document.getElementById('rd-relapse').textContent = relapse;
+
+    // Circumference = 2 * π * 54 ≈ 339.29
+    const circ = 2 * Math.PI * 54;
+    const offset = circ - (pct / 100) * circ;
+    setTimeout(() => {
+      document.getElementById('rate-arc').style.strokeDashoffset = offset;
+      // Color: red if below 50%
+      if (pct < 50) document.getElementById('rate-arc').setAttribute('stroke', 'var(--red)');
+    }, 300);
+
+    // Days since first log
+    document.getElementById('rd-empty').textContent = '—';
+  }
+
+  function renderRecent(logs) {
+    const el = document.getElementById('recent-list');
+    if (!logs.length) {
+      el.innerHTML = '<div class="empty-state">No entries yet. Go log your first day!</div>';
+      return;
+    }
+    el.innerHTML = logs.slice(0, 20).map(log => {
+      const isClean = log.result === 'negative';
+      const dur = log.duration_minutes ? `${log.duration_minutes}m` : '';
+      return `
+        <div class="log-item">
+          <div class="log-badge ${isClean ? 'clean' : 'relapse'}"></div>
+          <div class="log-date">${log.log_date}</div>
+          <div class="log-result ${isClean ? 'clean' : 'relapse'}">${isClean ? 'Clean' : 'Relapsed'}</div>
+          <div class="log-notes">${log.notes ? escHtml(log.notes) : ''}</div>
+          ${dur ? `<div class="log-duration">${dur}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  init();
+</script>
+</body>
+</html>
